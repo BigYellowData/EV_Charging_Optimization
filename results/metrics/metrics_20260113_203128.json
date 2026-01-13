@@ -1,0 +1,17 @@
+{
+  "hypervolume": 99850.73869087767,
+  "spacing": null,
+  "n_solutions": 100,
+  "best_cost": -0.6698752882427027,
+  "best_dissatisfaction": 2.003459241906036e-05,
+  "best_peak_power": 0.023682534302468472,
+  "worst_cost": 2.929996288040348,
+  "worst_dissatisfaction": 0.999984361337711,
+  "worst_peak_power": 14.999074884565731,
+  "mean_cost": 1.214600575611939,
+  "mean_dissatisfaction": 0.4765188436003105,
+  "mean_peak_power": 8.559629950002476,
+  "std_cost": 1.0518346441331237,
+  "std_dissatisfaction": 0.29217629003697887,
+  "std_peak_power": 4.327227291372777
+}
