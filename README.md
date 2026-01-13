@@ -47,7 +47,7 @@ Les résultats sont sauvegardés dans le dossier `results/` :
 
 - **`result_*.json`** : Résumé de la meilleure solution et métadonnées.
 - **`schedule_*.csv`** : Planning de charge détaillé (Véhicule x Heure).
-- **`pareto_front_*.csv`** : Les 100 solutions du front de Pareto (pour analyse).
+- **`pareto_front_*.csv`** : Les solutions du front de Pareto (pour analyse).
 - **`metrics/metrics_*.json`** : Métriques de performance (Hypervolume, Spacing).
 
 ### Exemple de Métriques (Terminal)
