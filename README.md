@@ -1,11 +1,11 @@
-# 🚗 EV Charging Optimizer
+#  EV Charging Optimizer
 
 Optimiseur de charge pour véhicules électriques utilisant l'algorithme **MODE** (Multi-Objective Differential Evolution) pour optimiser simultanément :
 1. **Coût de l'électricité** (Profit V2G)
 2. **Satisfaction utilisateur** (État de charge au départ)
 3. **Pic de puissance** (Stress sur le réseau)
 
-## 📚 Contexte Académique
+##  Contexte Académique
 
 Ce projet implémente la **même modélisation mathématique** que l'article de [Qian et al. (2023)](https://arxiv.org/abs/2308.08792) sur le contrôle de charge V2G/G2V, mais utilise une **métaheuristique différente** :
 
@@ -14,7 +14,7 @@ Ce projet implémente la **même modélisation mathématique** que l'article de 
 
 Cette adaptation permet d'obtenir un **front de Pareto complet** avec 100 solutions non-dominées.
 
-## ✨ Fonctionnalités
+##  Fonctionnalités
 
 - **Données Réelles** : Intégration complète avec l'API Caltech ACN-Data
 - **Optimisation Multi-Objectifs** : Utilisation de MODE pour trouver le front de Pareto optimal
@@ -24,7 +24,7 @@ Cette adaptation permet d'obtenir un **front de Pareto complet** avec 100 soluti
 - **Configuration Flexible** : Tout est paramétrable via `.env`
 - **V2G Support** : Support bidirectionnel (charge et décharge)
 
-## 🚀 Démarrage Rapide
+##  Démarrage Rapide
 
 ### Prérequis
 - Docker & Docker Compose
@@ -41,10 +41,10 @@ Le moyen le plus simple de lancer une optimisation :
 ```bash
 docker-compose run --rm optimizer-interactive
 ```
-- 📅 Visualisez les dates disponibles
-- 🚙 Choisissez le nombre de véhicules
-- ⚙️ Configurez la puissance du site
-- 🔧 Ajustez les paramètres MODE
+-  Visualisez les dates disponibles
+-  Choisissez le nombre de véhicules
+-  Configurez la puissance du site
+-  Ajustez les paramètres MODE
 
 ### 3. Mode Automatique (Production)
 Pour des exécutions répétées avec les paramètres du `.env` :
@@ -52,7 +52,7 @@ Pour des exécutions répétées avec les paramètres du `.env` :
 docker-compose --profile prod up optimizer-real
 ```
 
-## 📊 Résultats
+##  Résultats
 
 Les résultats sont sauvegardés dans le dossier `results/` :
 
@@ -64,7 +64,7 @@ Les résultats sont sauvegardés dans le dossier `results/` :
 ### Exemple de Résultats (Caltech 2019-07-15, 30 véhicules)
 ```
 ======================================================================
-  📊 PERFORMANCE METRICS
+   PERFORMANCE METRICS
 ======================================================================
   Hypervolume (HV):     0.7276    (73% de couverture - Excellent)
   Spacing (SP):         0.0312    (Distribution uniforme - Excellent)
@@ -79,7 +79,7 @@ Les résultats sont sauvegardés dans le dossier `results/` :
 ======================================================================
 ```
 
-## ⚙️ Configuration (.env)
+##  Configuration (.env)
 
 Tous les paramètres sont ajustables dans le fichier `.env` :
 
@@ -107,14 +107,14 @@ Tous les paramètres sont ajustables dans le fichier `.env` :
 | `MODE_CR` | Taux de croisement | 0.9 |
 | `MODE_F` | Facteur de mutation | 0.5 |
 
-## 🛠️ Développement
+##  Développement
 
 Pour reconstruire l'image Docker après modification du code :
 ```bash
 docker-compose build
 ```
 
-## 📁 Structure du Projet
+##  Structure du Projet
 
 ```
 .
@@ -134,13 +134,12 @@ docker-compose build
 └── analysis_output/        # Visualisations (PNG)
 ```
 
-## 📖 Références
+##  Références
 
 - **Qian, J., et al. (2023)** - Federated Reinforcement Learning for Electric Vehicles Charging Control on Distribution Networks. [arXiv:2308.08792](https://arxiv.org/abs/2308.08792)
-- **Storn, R., & Price, K. (1997)** - Differential evolution. Journal of global optimization, 11(4), 341-359.
 - **Caltech ACN-Data** - https://ev.caltech.edu/
 
-## 📈 Métriques de Qualité
+##  Métriques de Qualité
 
 ### Hypervolume (HV)
 Mesure le volume de l'espace des objectifs dominé par le front de Pareto. Plus élevé = meilleure couverture.
@@ -148,7 +147,7 @@ Mesure le volume de l'espace des objectifs dominé par le front de Pareto. Plus 
 ### Spacing (SP)
 Mesure l'uniformité de la distribution des solutions. Plus faible = distribution plus uniforme.
 
-## 🎓 Utilisation Académique
+##  Utilisation Académique
 
 Ce projet a été développé dans un cadre académique. Le rapport complet est disponible dans `RAPPORT_COMPLET.tex` avec :
 - Formulation mathématique détaillée
@@ -158,6 +157,5 @@ Ce projet a été développé dans un cadre académique. Le rapport complet est 
 
 ---
 
-**License** : MIT
-**Author** : [Votre Nom]
+**Author** : Nadir NEHILI
 **Version** : 2.0.0
