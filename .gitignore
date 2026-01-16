@@ -56,10 +56,10 @@ logs/
 data_cache/
 *.cache
 
-# Results
-results/
-*.csv
-*.json
+# Results - Keep the latest results for presentation
+# results/
+# *.csv
+# *.json
 !requirements.txt
 !package.json
 

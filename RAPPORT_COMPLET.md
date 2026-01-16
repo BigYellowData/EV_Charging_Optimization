@@ -1,457 +1,311 @@
-# Rapport : Optimisation Multi-Objectifs de la Charge de Véhicules Électriques
+# Optimisation Multi-Objectifs de la Charge de Véhicules Électriques
 
-## Métaheuristique MODE appliquée aux données réelles Caltech
+**Métaheuristique MODE - Données réelles Caltech**
 
 **Date :** 17 Janvier 2026
-**Version :** 2.0.0
 **Auteur :** [Votre Nom]
-**Institution :** [Votre Institution]
 
 ---
 
-## Résumé Exécutif
+## 1. Le Problème
 
-Ce projet implémente une solution d'optimisation multi-objectifs pour la charge de 30 véhicules électriques en utilisant l'algorithme **MODE** (Multi-Objective Differential Evolution) de la bibliothèque PyMOODE. L'optimisation porte sur des données réelles du réseau Caltech ACN-Data du 15 juillet 2019.
+### 1.1 Qu'est-ce qu'on veut faire ?
 
-**Résultats principaux :**
-- ✅ **100 solutions non-dominées** trouvées en 33.99 secondes
-- ✅ **Hypervolume = 0.7276** : Excellente couverture de l'espace (73%)
-- ✅ **Spacing = 0.0312** : Distribution très uniforme des solutions
-- ✅ **Viabilité V2G démontrée** : Profit jusqu'à -4.50€ possible
-- ✅ **Réduction du pic possible** : De 58.37 kW à 14.07 kW (-76%)
+Optimiser la charge de **30 véhicules électriques** en considérant **3 objectifs contradictoires** :
 
----
+1. **Minimiser le coût** d'électricité (ou même générer des revenus avec V2G)
+2. **Minimiser l'insatisfaction** des utilisateurs (atteindre le SoC cible)
+3. **Minimiser le pic de puissance** (impact sur le réseau électrique)
 
-## Table des Matières
+### 1.2 Pourquoi c'est compliqué ?
 
-1. [Introduction](#1-introduction)
-2. [Contexte et Problématique](#2-contexte-et-problématique)
-3. [Données Utilisées](#3-données-utilisées)
-4. [Modélisation Mathématique](#4-modélisation-mathématique)
-5. [Métaheuristique MODE](#5-métaheuristique-mode)
-6. [Paramètres de l'Optimisation](#6-paramètres-de-loptimisation)
-7. [Résultats et Analyse](#7-résultats-et-analyse)
-8. [Métriques de Performance](#8-métriques-de-performance)
-9. [Discussion](#9-discussion)
-10. [Conclusion](#10-conclusion)
-11. [Références](#11-références)
+Ces trois objectifs sont **contradictoires** :
+- Charger vite pour satisfaire → Coûte cher + Crée des pics
+- Charger peu cher (la nuit) → Insatisfait ceux qui partent tôt
+- Décharger pour gagner de l'argent (V2G) → Crée des pics
+
+**Conclusion :** Il n'existe pas UNE solution optimale, mais un **ensemble de solutions** (front de Pareto).
 
 ---
 
-## 1. Introduction
+## 2. Les Données
 
-### 1.1 Contexte Général
+### 2.1 Source
+- **Caltech ACN-Data** : Données réelles de charge de VE
+- **Date :** 15 juillet 2019 (un lundi normal)
+- **Véhicules :** 30 sessions de charge réelles
 
-La transition énergétique vers les véhicules électriques (VE) pose de nouveaux défis pour les gestionnaires de flottes et les opérateurs de réseau électrique. L'optimisation de la charge de multiples véhicules doit simultanément considérer :
-- Les **coûts d'électricité** pour l'opérateur
-- La **satisfaction des utilisateurs** (état de charge au départ)
-- L'**impact sur le réseau électrique** (pics de puissance)
+### 2.2 Tarif électricité (TOU - Time of Use)
 
-Ces objectifs sont souvent **contradictoires**, rendant impossible l'optimisation simultanée de tous. Cette caractéristique définit un problème d'**optimisation multi-objectifs**.
+Le prix varie selon l'heure :
+- **Heures creuses** (0h-6h, 22h-24h) : 0.12 $/kWh
+- **Heures moyennes** (6h-16h) : 0.18 $/kWh
+- **Heures de pointe** (16h-22h) : 0.30 $/kWh (×2.5 plus cher !)
 
-### 1.2 Objectif du Projet
-
-Ce projet vise à développer et évaluer une solution d'optimisation multi-objectifs pour la charge de véhicules électriques en utilisant la métaheuristique **MODE** (Multi-Objective Differential Evolution) sur des **données réelles** provenant du réseau Caltech ACN-Data.
-
-### 1.3 Objectifs du Travail
-
-1. Implémenter une solution d'optimisation multi-objectifs pour la charge de VE
-2. Analyser les compromis entre coût, satisfaction utilisateur et impact réseau
-3. Tester la viabilité du Vehicle-to-Grid (V2G)
-4. Évaluer la qualité des solutions obtenues
+**Impact :** L'algorithme va naturellement privilégier la charge la nuit et la décharge (V2G) aux heures de pointe.
 
 ---
 
-## 2. Contexte et Problématique
+## 3. Le Modèle Mathématique
 
-### 2.1 Problème de la Charge de VE
+### 3.1 Variable de décision
 
-#### 2.1.1 Défis Techniques
+**P[i,t]** = Puissance de charge du véhicule i à l'heure t (en kW)
 
-**Pour l'opérateur de flotte :**
-- Minimiser les coûts d'électricité
-- Garantir la satisfaction des utilisateurs
-- Respecter la capacité du transformateur
+- **i** : véhicule (1 à 30)
+- **t** : heure (0 à 23)
+- **Total :** 30 × 24 = **720 variables**
 
-**Pour le réseau électrique :**
-- Éviter les pics de consommation
-- Lisser la demande dans le temps
-- Maintenir la stabilité du réseau
+**Valeurs possibles :**
+- P > 0 : Charge (réseau → batterie)
+- P < 0 : Décharge V2G (batterie → réseau)
+- P = 0 : Rien
 
-**Pour les utilisateurs :**
-- Atteindre un état de charge cible au départ
-- Préserver la durée de vie de la batterie
-- Flexibilité selon les besoins
+**Limites :** -6 kW ≤ P ≤ +30 kW
 
-#### 2.1.2 Vehicle-to-Grid (V2G)
+### 3.2 Les 3 objectifs à minimiser
 
-Le V2G permet aux véhicules de **restituer** l'électricité au réseau pendant les périodes de forte demande, créant ainsi une opportunité de **revenus** pour l'opérateur. Cependant, cela crée des flux bidirectionnels augmentant potentiellement le pic de puissance.
+**1. Coût (€) :**
+```
+Coût = Σ [Puissance_totale(heure) × Tarif(heure) × 1h]
+```
+- Si négatif → Profit (V2G)
+- Si positif → Coût
 
-### 2.2 Nature Multi-Objectifs du Problème
+**2. Insatisfaction :**
+```
+Insatisfaction = Σ max(0, SoC_voulu - SoC_obtenu)
+```
+- Mesure l'écart entre ce que veut l'utilisateur et ce qu'il obtient
 
-Le problème présente **trois objectifs contradictoires** :
+**3. Pic de puissance (kW) :**
+```
+Pic = maximum de |Puissance_totale(heure)|
+```
+- Impact sur le réseau électrique
 
-| Objectif 1 | vs | Objectif 2 | Conflit |
-|------------|-----|------------|---------|
-| Minimiser coût | ↔ | Maximiser satisfaction | Charger plus = coût plus élevé |
-| Minimiser coût (V2G) | ↔ | Minimiser pic | Décharge crée des pics |
-| Minimiser pic | ↔ | Maximiser satisfaction | Charge rapide = pic élevé |
+### 3.3 Contraintes
 
-Ces conflits rendent impossible l'existence d'une **solution unique optimale**. Au lieu de cela, on recherche un ensemble de **solutions non-dominées** formant le **front de Pareto**.
+1. **SoC batterie** : Entre 0% et 100%
+2. **Puissance site** : Maximum 60 kW au total
+3. **Disponibilité** : On ne peut charger que si le véhicule est branché
 
 ---
 
-## 3. Données Utilisées
+## 4. L'Algorithme MODE
 
-### 3.1 Source des Données : Caltech ACN-Data
+### 4.1 C'est quoi MODE ?
 
-**Source :** API Caltech Adaptive Charging Network
-**URL :** https://ev.caltech.edu/api/v1/sessions
-**Accès :** Via clé API fournie par Caltech
+**MODE** = Multi-Objective Differential Evolution
 
-**Description :**
-Base de données contenant des sessions de charge réelles de véhicules électriques sur plusieurs sites (Caltech, JPL, Office001). Les données incluent les heures d'arrivée, de départ, l'énergie consommée, et les caractéristiques des véhicules.
+C'est un algorithme **évolutionnaire** : il fait évoluer une population de solutions comme dans la nature.
 
-### 3.2 Jeu de Données Utilisé
+**Principe :**
+1. **Départ** : 100 solutions aléatoires
+2. **Itération** (1500 fois) :
+   - Créer de nouvelles solutions par mutation/croisement
+   - Garder les meilleures (celles non-dominées)
+3. **Résultat** : Front de Pareto = ensemble des meilleures solutions
 
-**Paramètres de sélection :**
+### 4.2 Paramètres utilisés
 
-| Paramètre | Valeur | Description |
-|-----------|--------|-------------|
-| **Site** | caltech | Campus de Caltech |
-| **Date** | 2019-07-15 | Lundi 15 juillet 2019 |
-| **Nombre de véhicules** | 30 | Limite imposée pour l'expérimentation |
+| Paramètre | Valeur | Signification |
+|-----------|--------|---------------|
+| Population | 100 | Nombre de solutions à chaque génération |
+| Générations | 1500 | Nombre d'itérations |
+| F (mutation) | 0.5 | Ampleur des variations |
+| CR (croisement) | 0.9 | Fréquence d'échange de gènes |
 
-**Justification du choix :**
-- **Date représentative** : Jour ouvrable en milieu de semaine
-- **Taille réaliste** : 30 véhicules = flotte moyenne d'entreprise
-- **Données complètes** : Toutes les sessions valides avec arrivée/départ
+### 4.3 Pourquoi MODE pour ce problème ?
 
-### 3.3 Tarif de l'Électricité
-
-**Tarif TOU (Time-Of-Use) :**
-- Source : Tarif californien (SCE - Southern California Edison)
-- Profil : **Variable selon l'heure**
-  - **Off-Peak** (0h-6h, 22h-24h) : 0.12 $/kWh (heures creuses)
-  - **Mid-Peak** (6h-16h) : 0.18 $/kWh (heures intermédiaires)
-  - **On-Peak** (16h-22h) : 0.30 $/kWh (heures de pointe, +150% vs Off-Peak)
-- Moyenne pondérée : ~0.17 $/kWh
+✅ Gère **plusieurs objectifs** simultanément
+✅ Fonctionne avec des **variables continues** (puissances réelles)
+✅ Gère les **contraintes** (SoC, puissance site)
+✅ Pas besoin de dérivées (problème complexe)
+✅ Trouve un **ensemble de solutions** (pas qu'une seule)
 
 ---
 
-## 4. Modélisation Mathématique
+## 5. Résultats Obtenus
 
-### 4.1 Variables de Décision
-
-La variable de décision principale est la **puissance de charge** :
-
-```
-P[i,t] : Puissance de charge du véhicule i à l'heure t (kW)
-```
-
-**Dimensions :**
-- i ∈ {1, 2, ..., 30} : Indices des véhicules
-- t ∈ {0, 1, ..., 23} : Indices des heures
-- **Total** : 30 × 24 = **720 variables de décision**
-
-**Domaine :**
-```
-P[i,t] ∈ [-6, +30] kW
-```
-
-**Interprétation :**
-- P[i,t] > 0 : Charge (flux réseau → batterie)
-- P[i,t] < 0 : Décharge V2G (flux batterie → réseau)
-- P[i,t] = 0 : Aucun flux
-
-### 4.2 Fonctions Objectifs
-
-#### 4.2.1 Objectif 1 : Coût d'Électricité
-
-**Formulation :**
-```
-f₁(P) = ∑ₜ₌₀²³ [P_total(t) × tarif(t) × dt]
-
-où P_total(t) = ∑ᵢ₌₁³⁰ P[i,t]
-```
-
-**Objectif :** **Minimiser** f₁(P)
-
-**Interprétation :**
-- f₁ > 0 : Coût (achat d'électricité)
-- f₁ < 0 : Profit (revente via V2G)
-
-#### 4.2.2 Objectif 2 : Insatisfaction Utilisateur
-
-**Formulation :**
-```
-f₂(P) = ∑ᵢ₌₁³⁰ max(0, SoC_cible[i] - SoC_final[i])
-```
-
-**Objectif :** **Minimiser** f₂(P)
-
-#### 4.2.3 Objectif 3 : Pic de Puissance
-
-**Formulation :**
-```
-f₃(P) = max(|P_total(t)|)  pour t ∈ {0, ..., 23}
-```
-
-**Objectif :** **Minimiser** f₃(P)
-
-### 4.3 Contraintes
-
-1. **Limites de SoC** : 0 ≤ SoC[i,t] ≤ 1 ∀i, ∀t
-2. **Capacité du site** : |P_total(t)| ≤ 60 kW ∀t
-3. **Disponibilité véhicules** : P[i,t] = 0 si véhicule non connecté
-
----
-
-## 5. Métaheuristique MODE
-
-### 5.1 Présentation de MODE
-
-**MODE** (Multi-Objective Differential Evolution) est une métaheuristique évolutionnaire pour l'optimisation multi-objectifs basée sur l'évolution différentielle.
-
-**Bibliothèque utilisée :** PyMOODE (Multi-Objective Optimization with Differential Evolution)
-
-Dans le code source ([src/services/optimization_service.py:8](src/services/optimization_service.py#L8)), l'import est explicite :
-```python
-from pymoode.algorithms import MODE
-```
-
-**Principes fondamentaux :**
-1. **Population** : Ensemble de solutions candidates
-2. **Mutation** : Création de nouvelles solutions par différence
-3. **Croisement** : Combinaison de solutions
-4. **Sélection** : Rétention des meilleures solutions (non-dominées)
-
-**Avantages pour notre problème :**
-- ✅ Adapté aux problèmes **continus** (variables réelles)
-- ✅ Gestion native du **multi-objectifs**
-- ✅ Gestion des **contraintes** via pénalités
-- ✅ Pas de dérivées requises (boîte noire)
-- ✅ Bonne exploration de l'espace
-
-### 5.2 Paramètres de MODE
-
-| Paramètre | Valeur | Description |
-|-----------|--------|-------------|
-| **Taille de population** | 100 | Nombre de solutions par génération |
-| **Nombre de générations** | 1500 | Nombre d'itérations |
-| **Facteur de mutation (F)** | 0.5 | Ampleur des variations |
-| **Taux de croisement (CR)** | 0.9 | Probabilité d'échange de gènes |
-| **Variant** | DE/rand/1/bin | Schéma de mutation |
-| **Seed** | 1 | Pour la reproductibilité |
-
----
-
-## 6. Résultats et Analyse
-
-### 6.1 Résultats Globaux
+### 5.1 Chiffres clés
 
 **Exécution :**
-- Date : 17 Janvier 2026, 00:02
-- Durée : **33.99 secondes**
-- Plateforme : Docker (Python 3.11)
+- Temps : **34 secondes**
+- Solutions trouvées : **100 solutions non-dominées**
+- **Toutes** respectent les contraintes
 
-**Solutions trouvées :**
-- **100 solutions non-dominées** dans le front de Pareto final
-- Toutes les solutions **respectent les contraintes** (violation = 0)
+**Qualité des solutions :**
+- **Hypervolume = 0.73** → Couvre 73% de l'espace optimal (excellent)
+- **Spacing = 0.031** → Distribution très uniforme (excellent)
 
-### 6.2 Métriques de Performance
+### 5.2 Analyse des 3 objectifs
 
-| Métrique | Valeur | Signification |
-|----------|--------|---------------|
-| **Hypervolume (HV)** | **0.7276** | Mesure la couverture de l'espace des objectifs (73%) |
-| **Spacing (SP)** | **0.0312** | Mesure l'uniformité de distribution des solutions |
-| **Nb solutions** | 100 | Nombre de solutions non-dominées trouvées |
-| **Temps exec.** | 33.99 s | Temps de calcul total |
+#### Objectif 1 : Coût
 
-**Interprétation :**
-- **HV = 0.7276** : 72.76% de l'espace optimal est couvert → excellente diversité de compromis
-- **SP = 0.0312** : Distribution très uniforme, pas de "trous" dans le front de Pareto
-- **100 solutions** : Large choix de stratégies de charge possibles
-- **33.99 secondes** : Temps de calcul raisonnable pour une application pratique
+| | Valeur | Signification |
+|---|--------|---------------|
+| **Meilleur** | **-4.50 €** | **Profit !** (V2G marche) |
+| Pire | 54.47 € | Coût maximum |
+| Moyen | 19.14 € | Coût moyen |
+| Variabilité (CV) | 79% | Très flexible |
 
-### 6.3 Analyse des Objectifs
+**Ce qu'on comprend :**
+- On peut **gagner de l'argent** avec le V2G (-4.50€)
+- Grande flexibilité : selon la priorité, le coût varie beaucoup
 
-#### 6.3.1 Objectif 1 : Coût
+#### Objectif 2 : Insatisfaction
 
-| Métrique | Valeur | Interprétation |
-|----------|--------|----------------|
-| **Minimum** | **-4.50 €** | **PROFIT** via V2G |
-| Maximum | 54.47 € | Coût maximal observé |
-| Moyenne | 19.14 € | Coût moyen des solutions |
-| Écart-type | 15.19 € | Grande variabilité |
-| **CV** | **79.4%** | **Très flexible** |
+| | Valeur | Signification |
+|---|--------|---------------|
+| **Meilleure** | **2.76** | ~9% d'écart par véhicule |
+| Pire | 6.93 | ~23% d'écart par véhicule |
+| Moyenne | 4.03 | ~13% d'écart par véhicule |
+| Variabilité (CV) | 26% | Bien contrôlé |
 
-**Analyse :**
-- ✅ **V2G viable** : Génération de revenus démontrée (-4.50€)
-- ✅ **Grande flexibilité** : CV = 79.4% = large marge de manœuvre
-- ✅ **Plage étendue** : De -4.50€ à +54.47€ (58.97€ d'amplitude)
+**Ce qu'on comprend :**
+- Même dans le pire cas, l'insatisfaction reste acceptable
+- Objectif le plus "stable" (varie peu)
 
-#### 6.3.2 Objectif 2 : Insatisfaction
+#### Objectif 3 : Pic de puissance
 
-| Métrique | Valeur | Interprétation |
-|----------|--------|----------------|
-| **Minimum** | **2.76** | ~9% d'écart/véhicule |
-| Maximum | 6.93 | ~23% d'écart/véhicule |
-| Moyenne | 4.03 | ~13% d'écart/véhicule |
-| Écart-type | 1.05 | Faible variabilité |
-| **CV** | **26.1%** | **Bien contrôlé** |
+| | Valeur | % du max site |
+|---|--------|---------------|
+| **Meilleur** | **14.07 kW** | 23% | Excellent lissage |
+| Pire | 58.37 kW | 97% | Proche de la limite |
+| Moyen | 32.27 kW | 54% | Utilisation modérée |
+| Variabilité (CV) | 34% | Flexible |
 
-#### 6.3.3 Objectif 3 : Pic de Puissance
-
-| Métrique | Valeur | % Capacité | Interprétation |
-|----------|--------|-----------|----------------|
-| **Minimum** | **14.07 kW** | 23.5% | Excellent lissage |
-| Maximum | 58.37 kW | 97.3% | Proche de la limite |
-| Moyenne | 32.27 kW | 53.8% | Utilisation modérée |
-| Écart-type | 11.00 kW | - | Variabilité importante |
-| **CV** | **34.1%** | - | Modérément flexible |
-
-**Analyse :**
-- ✅ **Réduction possible** : De 58.37 kW à 14.07 kW (-76% !)
-- ✅ **Marge de sécurité** : Aucun dépassement de 60 kW
-- ✅ **Flexibilité modérée** : CV = 34.1%
+**Ce qu'on comprend :**
+- On peut **réduire le pic de 76%** (de 58 à 14 kW !)
+- Aucune solution ne dépasse la limite de 60 kW
 
 ---
 
-## 7. Discussion
+## 6. Ce qu'on a compris
 
-### 7.1 Points Forts du Travail Réalisé
+### 6.1 Sur le problème multi-objectifs
 
-1. **Utilisation de données réelles** : Données Caltech ACN-Data (30 sessions du 15/07/2019)
-2. **Modélisation multi-objectifs complète** : Trois objectifs contradictoires traités simultanément
-3. **V2G implémenté** : Puissance bidirectionnelle [-6, +30] kW permettant des revenus
-4. **Tarification TOU variable** : Prise en compte des variations horaires de prix (Off/Mid/On-Peak)
-5. **Excellents résultats** : 100 solutions bien distribuées (HV=0.73, SP=0.031)
-6. **Calcul efficace** : 34 secondes pour résoudre un problème à 720 variables
-7. **Solutions pratiques** : Toutes respectent les contraintes physiques (SoC, puissance)
+**Constat principal :** Les 3 objectifs sont **vraiment contradictoires**
 
-### 7.2 Impact du Tarif TOU
+Exemples :
+- Pour gagner de l'argent (coût -4.50€) → Il faut utiliser le V2G → Ça crée des pics
+- Pour avoir un petit pic (14 kW) → Il faut charger lentement → Ça insatisfait les utilisateurs
+- Pour satisfaire tout le monde → Il faut charger vite → Ça coûte cher et crée des pics
 
-Le modèle intègre un profil de prix variable selon l'heure :
+**Conclusion :** C'est normal qu'il n'y ait pas UNE solution optimale. On doit **choisir selon la priorité**.
 
-**Impact sur l'optimisation :**
-1. **Incitation au déplacement de charge** : L'algorithme privilégie les heures Off-Peak
-2. **Opportunité V2G maximisée** : Décharge durant les heures On-Peak (prix élevés)
-3. **Arbitrage coût-satisfaction** : Charger la nuit peut insatisfaire les départs matinaux
-4. **Enrichissement du front de Pareto** : Plus de diversité de solutions
+### 6.2 Sur le tarif TOU
 
-### 7.3 Limites Identifiées
+Le prix qui varie selon l'heure change beaucoup les choses :
 
-**Limites du modèle :**
-1. **Tarification TOU fixe** : Pas de prévision des prix futurs
-2. **Modèle de batterie simplifié** : Pas de dégradation, rendement = 100%
-3. **Prédiction parfaite** : Heures d'arrivée/départ connues à l'avance
-4. **Horizon court** : 24 heures seulement
+1. **Incitation naturelle** : MODE privilégie les heures creuses pour charger
+2. **V2G rentable** : Décharger aux heures de pointe (0.30 $/kWh) génère des revenus
+3. **Compromis nécessaire** : Charger uniquement la nuit insatisfait ceux qui partent tôt le matin
 
-**Limites de l'algorithme :**
-1. **Paramètres fixés** : Pas de tuning adaptatif
-2. **Une seule exécution** : Pas d'analyse statistique multi-runs
+### 6.3 Sur MODE
 
-### 7.4 Validation des Résultats
+**Ce qu'on observe :**
+- MODE **converge bien** : HV = 0.73 (excellent)
+- Les solutions sont **bien réparties** : SP = 0.031 (très uniforme)
+- C'est **rapide** : 34 secondes pour 720 variables
+- **1500 générations** suffisent pour explorer correctement l'espace
 
-✅ **Respect des contraintes** : 100% des solutions valides
+### 6.4 Validation
+
+**Pourquoi on peut faire confiance aux résultats :**
+
+✅ **Contraintes respectées** : 100% des solutions sont valides
 - SoC toujours entre 0% et 100%
 - Puissance site jamais > 60 kW
-- Disponibilité véhicules respectée
+- Respect de la disponibilité des véhicules
 
 ✅ **Cohérence physique** :
-- V2G (coût négatif) → flux négatifs effectifs
-- Charge rapide → pics élevés
-- Charge lente → pics faibles
+- Quand coût < 0 → On voit bien des flux négatifs (V2G)
+- Charge rapide → Pics élevés
+- Charge lente → Pics faibles
 
-✅ **Reproductibilité** :
-- Seed fixé (seed=1)
-- Résultats identiques à chaque exécution
+✅ **Reproductible** :
+- Avec le même seed (seed=1), on obtient toujours les mêmes résultats
 
-✅ **Qualité des métriques** :
-- Hypervolume = 0.7276 (excellent)
-- Spacing = 0.0312 (excellent, < 0.05)
+---
+
+## 7. Limites et Améliorations Possibles
+
+### 7.1 Ce qu'on n'a pas fait (limites)
+
+**Sur le modèle :**
+- Tarifs TOU fixes (pas de prévision de prix futurs)
+- Batterie simplifiée (pas de dégradation, rendement 100%)
+- On suppose qu'on connaît les heures d'arrivée/départ à l'avance
+- Optimisation sur 24h seulement (pas multi-jours)
+
+**Sur l'algorithme :**
+- Paramètres F et CR fixés manuellement
+- Une seule exécution (pas de statistiques sur plusieurs runs)
+
+### 7.2 Ce qu'on pourrait améliorer
+
+**Court terme :**
+- Tester différentes valeurs de F et CR
+- Faire plusieurs exécutions et calculer les moyennes
+- Ajouter un modèle de dégradation de batterie
+
+**Long terme :**
+- Prévoir les prix futurs de l'électricité
+- Optimiser sur plusieurs jours
+- Prendre en compte l'incertitude sur les arrivées/départs
 
 ---
 
 ## 8. Conclusion
 
-### 8.1 Synthèse des Résultats
+### 8.1 Ce qu'on a réalisé
 
-Ce projet a permis de développer et d'évaluer une solution d'optimisation multi-objectifs pour la charge de 30 véhicules électriques en utilisant la métaheuristique **MODE** sur des **données réelles** du réseau Caltech ACN-Data.
+✅ Implémenté MODE pour optimiser 720 variables
+✅ Utilisé des **données réelles** (Caltech, 30 véhicules)
+✅ Obtenu **100 solutions de qualité** (HV=0.73, SP=0.031)
+✅ Prouvé la **viabilité du V2G** (jusqu'à -4.50€ de profit)
+✅ Montré qu'on peut **réduire le pic de 76%** (de 58 à 14 kW)
 
-**Résultats obtenus :**
+### 8.2 Réponse à la question initiale
 
-1. ✅ **100 solutions non-dominées** trouvées en 33.99 secondes
-2. ✅ **Hypervolume = 0.7276** : Excellente couverture de l'espace (73%)
-3. ✅ **Spacing = 0.0312** : Distribution très uniforme des solutions
-4. ✅ **Viabilité V2G démontrée** : Profit jusqu'à -4.50€ possible
-5. ✅ **Réduction du pic possible** : De 58.37 kW à 14.07 kW (-76%)
-
-### 8.2 Ce que Nous Avons Appris
-
-**Sur le problème :**
-- Les trois objectifs sont fortement contradictoires : impossible de tous les optimiser simultanément
-- Le tarif TOU crée des opportunités de revenus avec le V2G durant les heures On-Peak
-- L'insatisfaction est l'objectif le plus stable (CV=26%), le coût le plus flexible (CV=79%)
-
-**Sur la métaheuristique :**
-- MODE converge efficacement vers le front de Pareto optimal
-- Les 1500 générations permettent une bonne exploration de l'espace
-- Le calcul reste rapide malgré 720 variables de décision
-
-### 8.3 Réponse à la Problématique
-
-**Question initiale :** Comment optimiser simultanément le coût, la satisfaction et le pic de puissance pour une flotte de VE ?
+**Question :** Comment optimiser le coût, la satisfaction et le pic simultanément ?
 
 **Réponse :**
-Il n'existe pas de **solution unique optimale** mais un **ensemble de 100 solutions non-dominées** (front de Pareto) offrant différents compromis selon les priorités.
+On **ne peut pas** avoir UNE solution qui optimise tout. Mais on peut trouver **100 solutions non-dominées** qui offrent différents compromis :
 
-### 8.4 Applications Potentielles
+| Priorité | Choix de solution | Résultat |
+|----------|-------------------|----------|
+| **Gagner de l'argent** | Solution à coût minimal | -4.50€ (profit V2G) |
+| **Satisfaire les clients** | Solution à insatisfaction minimale | Écart de 9% seulement |
+| **Protéger le réseau** | Solution à pic minimal | 14 kW (au lieu de 58) |
 
-**Pour un gestionnaire de flotte :**
-- Choisir la solution selon la priorité du jour
-- Prévoir les revenus V2G possibles
-- Planifier la charge selon les tarifs TOU
+**Le gestionnaire choisit selon sa priorité du moment.**
 
-**Pour un opérateur de réseau :**
-- Identifier les stratégies réduisant le pic de puissance
-- Éviter le surdimensionnement du transformateur
-- Mieux intégrer les VE dans le réseau
+### 8.3 Ce qu'on a appris
 
-### 8.5 Conclusion Générale
+**Sur le multi-objectifs :**
+- Les conflits entre objectifs sont réels et inévitables
+- C'est normal de ne pas pouvoir tout optimiser
+- Le front de Pareto donne le **choix** au décideur
 
-Ce travail a permis de construire une solution complète d'optimisation multi-objectifs pour la charge de véhicules électriques. En utilisant MODE sur des données réelles de Caltech, nous avons obtenu **100 solutions de qualité** qui montrent les compromis possibles entre coût, satisfaction et impact réseau.
+**Sur MODE :**
+- Efficace pour ce type de problème (73% de l'espace couvert)
+- Converge rapidement (34 secondes)
+- Produit des solutions bien distribuées
 
-Les résultats démontrent que :
-- Le V2G peut générer des revenus (jusqu'à -4.50€)
-- Le pic de puissance peut être réduit de 76% avec une stratégie adaptée
-- L'optimisation multi-objectifs est essentielle car aucune solution unique n'est optimale pour tous les critères
+**Sur le V2G :**
+- C'est rentable avec un tarif TOU
+- Maximiser le profit crée des pics
+- Il faut trouver le bon équilibre
 
 ---
 
-## 9. Références
+## Références Principales
 
-### 9.1 Algorithmes Évolutionnaires
-
-- **Storn, R., & Price, K. (1997)**. Differential evolution–a simple and efficient heuristic for global optimization over continuous spaces. *Journal of global optimization*, 11(4), 341-359.
-
-### 9.2 Optimisation Multi-Objectifs
-
-- **Deb, K., Pratap, A., Agarwal, S., & Meyarivan, T. A. M. T. (2002)**. A fast and elitist multiobjective genetic algorithm: NSGA-II. *IEEE transactions on evolutionary computation*, 6(2), 182-197.
-
-- **Zitzler, E., Thiele, L., Laumanns, M., Fonseca, C. M., & Da Fonseca, V. G. (2003)**. Performance assessment of multiobjective optimizers: An analysis and review. *IEEE Transactions on evolutionary computation*, 7(2), 117-132.
-
-### 9.3 Métriques de Performance
-
-- **While, L., Hingston, P., Barone, L., & Huband, S. (2006)**. A faster algorithm for calculating hypervolume. *IEEE transactions on evolutionary computation*, 10(1), 29-38.
-
-- **Schott, J. R. (1995)**. Fault tolerant design using single and multicriteria genetic algorithm optimization. *PhD thesis, Massachusetts Institute of Technology*.
-
-### 9.4 Données
-
-- **Lee, Z. J., Johansson, D., & Low, S. H. (2019)**. ACN-Data: Analysis and applications of an open EV charging dataset. *Proceedings of the Tenth ACM International Conference on Future Energy Systems*, 139-149.
-
+- **Storn & Price (1997)** : Differential Evolution (base de MODE)
+- **Deb et al. (2002)** : NSGA-II (référence en multi-objectifs)
 - **Caltech ACN-Data** : https://ev.caltech.edu/
 
 ---

@@ -94,15 +94,15 @@ Examples:
     parser.add_argument(
         '--generations',
         type=int,
-        default=settings.gde3_n_gen,
-        help=f'MODE generations (default: {settings.gde3_n_gen})'
+        default=settings.mode_n_gen,
+        help=f'MODE generations (default: {settings.mode_n_gen})'
     )
 
     parser.add_argument(
         '--population',
         type=int,
-        default=settings.gde3_pop_size,
-        help=f'MODE population size (default: {settings.gde3_pop_size})'
+        default=settings.mode_pop_size,
+        help=f'MODE population size (default: {settings.mode_pop_size})'
     )
     
     # Output options

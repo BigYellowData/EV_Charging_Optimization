@@ -46,12 +46,12 @@ class Settings(BaseSettings):
     charging_power_max: float = Field(default=30.0, description="Max charging power in kW", gt=0)
     site_max_power: float = Field(default=60.0, description="Site transformer capacity in kW", gt=0)
     
-    # GDE3 Algorithm Parameters
-    gde3_pop_size: int = Field(default=100, description="Population size", ge=10)
-    gde3_n_gen: int = Field(default=1500, description="Number of generations", ge=100)
-    gde3_variant: str = Field(default="DE/rand/1/bin", description="DE variant")
-    gde3_cr: float = Field(default=0.9, description="Crossover rate", ge=0, le=1)
-    gde3_f: float = Field(default=0.5, description="Mutation factor", ge=0, le=2)
+    # MODE Algorithm Parameters (Multi-Objective Differential Evolution)
+    mode_pop_size: int = Field(default=100, description="Population size", ge=10)
+    mode_n_gen: int = Field(default=1500, description="Number of generations", ge=100)
+    mode_variant: str = Field(default="DE/rand/1/bin", description="DE variant")
+    mode_cr: float = Field(default=0.9, description="Crossover rate", ge=0, le=1)
+    mode_f: float = Field(default=0.5, description="Mutation factor", ge=0, le=2)
     
     # Infrastructure
     cache_dir: Path = Field(default=Path("data_cache"), description="Cache directory path")
@@ -78,13 +78,13 @@ class Settings(BaseSettings):
         return self.caltech_api_key.get_secret_value()
     
     def get_optimizer_config(self) -> dict:
-        """Get GDE3 optimizer configuration."""
+        """Get MODE optimizer configuration."""
         return {
-            'pop_size': self.gde3_pop_size,
-            'n_gen': self.gde3_n_gen,
-            'variant': self.gde3_variant,
-            'CR': self.gde3_cr,
-            'F': self.gde3_f
+            'pop_size': self.mode_pop_size,
+            'n_gen': self.mode_n_gen,
+            'variant': self.mode_variant,
+            'CR': self.mode_cr,
+            'F': self.mode_f
         }
 
 
