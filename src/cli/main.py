@@ -8,7 +8,7 @@ from pathlib import Path
 
 from ..config.settings import settings
 from ..config.logging_config import setup_logging, get_logger
-from ..services.optimization_service import GDE3OptimizerService
+from ..services.optimization_service import MODEOptimizerService
 from ..infrastructure.repositories.caltech_repository import CaltechRepository
 from ..infrastructure.repositories.synthetic_generator import SyntheticDataGenerator
 from ..infrastructure.cache.file_cache import FileCache
@@ -95,14 +95,14 @@ Examples:
         '--generations',
         type=int,
         default=settings.gde3_n_gen,
-        help=f'GDE3 generations (default: {settings.gde3_n_gen})'
+        help=f'MODE generations (default: {settings.gde3_n_gen})'
     )
-    
+
     parser.add_argument(
         '--population',
         type=int,
         default=settings.gde3_pop_size,
-        help=f'GDE3 population size (default: {settings.gde3_pop_size})'
+        help=f'MODE population size (default: {settings.gde3_pop_size})'
     )
     
     # Output options
@@ -177,7 +177,7 @@ def main():
         optimizer_config = settings.get_optimizer_config()
         optimizer_config['n_gen'] = args.generations
         optimizer_config['pop_size'] = args.population
-        optimizer = GDE3OptimizerService(config=optimizer_config)
+        optimizer = MODEOptimizerService(config=optimizer_config)
         
         # Data sources
         caltech_repo = None

@@ -1,11 +1,11 @@
 """
-GDE3 Optimization Service implementing IOptimizer.
+MODE Optimization Service implementing IOptimizer.
 """
 import numpy as np
 from typing import Optional, Dict, Any
 from time import time
 from pymoo.core.problem import ElementwiseProblem
-from pymoode.algorithms import GDE3
+from pymoode.algorithms import MODE
 from pymoo.optimize import minimize
 from pymoo.config import Config
 
@@ -141,18 +141,18 @@ class EVChargingProblem(ElementwiseProblem):
         return float(violation)
 
 
-class GDE3OptimizerService(IOptimizer):
-    """Optimization service using GDE3 algorithm."""
-    
+class MODEOptimizerService(IOptimizer):
+    """Optimization service using MODE algorithm."""
+
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         """
         Initialize optimizer.
-        
+
         Args:
             config: Optional configuration overrides
         """
         self.config = config or settings.get_optimizer_config()
-        logger.info(f"Initialized GDE3 optimizer: {self.config}")
+        logger.info(f"Initialized MODE optimizer: {self.config}")
     
     def optimize(
         self,
@@ -186,7 +186,7 @@ class GDE3OptimizerService(IOptimizer):
             problem = EVChargingProblem(scenario)
             
             # Create algorithm
-            algorithm = GDE3(
+            algorithm = MODE(
                 pop_size=opt_config['pop_size'],
                 variant=opt_config['variant'],
                 CR=opt_config['CR'],
@@ -267,7 +267,7 @@ class GDE3OptimizerService(IOptimizer):
     
     def get_algorithm_name(self) -> str:
         """Get algorithm name."""
-        return "GDE3"
+        return "MODE"
     
     def validate_scenario(self, scenario: Scenario) -> bool:
         """Validate scenario."""
