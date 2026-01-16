@@ -157,5 +157,5 @@ Ce projet a été développé dans un cadre académique. Le rapport complet est 
 
 ---
 
-**Author** : Nadir NEHILI
+**Author** : Nadir NEHILI - Nahil EL BEZZARI - Yassine LAZIZI
 **Version** : 2.0.0
