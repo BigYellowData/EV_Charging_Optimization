@@ -149,7 +149,7 @@ Mesure l'uniformité de la distribution des solutions. Plus faible = distributio
 
 ##  Utilisation Académique
 
-Ce projet a été développé dans un cadre académique. Le rapport complet est disponible dans `RAPPORT_COMPLET.tex` avec :
+Ce projet a été développé dans un cadre académique. Le rapport complet est disponible dans `Rapport_Optimisation_Recharge_EV.pdf` avec :
 - Formulation mathématique détaillée
 - Analyse des résultats
 - Interprétation des métriques HV et SP
